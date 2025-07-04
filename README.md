@@ -39,4 +39,4 @@ services:
 ```bash
 curl --socks5-hostname 127.0.0.1:1080 https://www.cloudflare.com/cdn-cgi/trace/
 ```
-返回字段中 `warp=warp` 或 `warp=plus` 表示成功
+返回字段中 `warp=on` 或 `warp=plus` 表示成功
