@@ -1,0 +1,14 @@
+services:
+  Proxy:
+    image: ghcr.io/w9315273/docker-warp-proxy:latest
+    container_name: Proxy
+    network_mode: bridge
+    ports:
+      - "1080:1080"
+    environment:
+      TZ: 'Asia/Seoul'
+      WARP_PROXY_PORT: '1080'
+      WARP_LICENSE_KEY: ''
+    volumes:
+      - ./:/var/lib/cloudflare-warp
+    restart: always
