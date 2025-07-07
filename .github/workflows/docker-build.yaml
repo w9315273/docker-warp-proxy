@@ -1,5 +1,10 @@
 name: 构建并推送 Docker 镜像
+
 on:
+  push:
+    tags:
+      - '*.*.*'
+      
   workflow_dispatch:
     inputs:
       version:
@@ -11,6 +16,7 @@ on:
         required: true
         type: boolean
         default: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -38,10 +44,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # 这是你手动输入的版本号, 例如 v1.1.0
-            type=raw,value=${{ inputs.version }}
-            # 如果你勾选了 set_latest, 则添加 latest 标签
-            type=raw,value=latest,enable=${{ inputs.set_latest }}
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            
+            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' && inputs.set_latest }}
 
       - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v6
