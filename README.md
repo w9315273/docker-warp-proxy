@@ -30,8 +30,8 @@ docker run -d \
   -v ./warp-data:/var/lib/cloudflare-warp \
   -e TZ=Asia/Seoul \
   -e WARP_PROXY_PORT=1080 \
-  -e WARP_LICENSE_KEY= ""     # 可选, 你的LICENSE_KEY \
-  -e WARP_TOKEN_URL= ""       # 可选, 获取到的TOKEN_URL \
+  -e WARP_LICENSE_KEY= "" \    # 可选, 你的LICENSE_KEY \
+  -e WARP_TOKEN_URL= "" \       # 可选, 获取到的TOKEN_URL \
   --cap-add NET_ADMIN \
   --device /dev/net/tun \
   --sysctl net.ipv4.ip_forward=1 \
