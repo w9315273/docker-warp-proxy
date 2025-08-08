@@ -60,7 +60,7 @@ jobs:
     if: needs.check.outputs.build == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: read 
+      contents: write 
       packages: write
     steps:
       - name: 检出仓库
@@ -85,7 +85,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # 主 tag：1.1.0+warp2025.5.943.0
+            # 主 tag: 1.1.0+warp2025.5.943.0
             type=raw,value=${{ steps.codever.outputs.code }}+warp${{ needs.check.outputs.warp }}
             # latest 指针：永远更新
             type=raw,value=latest
@@ -106,7 +106,7 @@ jobs:
           WARP_VER="${{ needs.check.outputs.warp }}"
           NEW_TAG="v${CODE_VER}+warp${WARP_VER}"
 
-          # ---------- 1️⃣ 处理 Tag ----------
+          # ---------- 1 处理 Tag ----------
           if git ls-remote --exit-code --tags origin "$NEW_TAG" >/dev/null; then
             echo "🟢 Tag $NEW_TAG 已存在，跳过 push"
           else
@@ -115,7 +115,7 @@ jobs:
             git push origin "$NEW_TAG"
           fi
 
-          # ---------- 2️⃣ 处理 Release ----------
+          # ---------- 2 处理 Release ----------
           if gh release view "$NEW_TAG" >/dev/null 2>&1; then
             echo "✏️  Release 已存在，使用自动生成的内容更新它"
             gh release edit "$NEW_TAG" --generate-notes
