@@ -102,9 +102,8 @@ jobs:
         run: |
           CODE_VER="${{ steps.codever.outputs.code }}"
           WARP_VER="${{ needs.check.outputs.warp }}"
-          NEW_TAG="${CODE_VER}+WARP${WARP_VER}"
-
-          RELEASE_TITLE="${CODE_VER}+WARP${WARP_VER}"
+          NEW_TAG="${CODE_VER}+WARP.${WARP_VER}"
+          RELEASE_TITLE="${CODE_VER}+WARP.${WARP_VER}"
 
           # ---------- 1 处理 Tag ----------
           if git ls-remote --exit-code --tags origin "$NEW_TAG" >/dev/null; then
