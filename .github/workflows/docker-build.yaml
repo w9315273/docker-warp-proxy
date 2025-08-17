@@ -85,7 +85,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ steps.codever.outputs.code }}+warp${{ needs.check.outputs.warp }}
+            type=raw,value=${{ steps.codever.outputs.code }}+WARP.${{ needs.check.outputs.warp }}
             type=raw,value=latest
 
       - name: 构建并推送 Docker 镜像
