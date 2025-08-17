@@ -85,9 +85,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # 主 tag: 1.1.0+warp2025.5.943.0
             type=raw,value=${{ steps.codever.outputs.code }}+warp${{ needs.check.outputs.warp }}
-            # latest 指针：永远更新
             type=raw,value=latest
 
       - name: 构建并推送 Docker 镜像
@@ -104,7 +102,9 @@ jobs:
         run: |
           CODE_VER="${{ steps.codever.outputs.code }}"
           WARP_VER="${{ needs.check.outputs.warp }}"
-          NEW_TAG="v${CODE_VER}+warp${WARP_VER}"
+          NEW_TAG="${CODE_VER}+WARP${WARP_VER}"
+
+          RELEASE_TITLE="${CODE_VER}+WARP${WARP_VER}"
 
           # ---------- 1 处理 Tag ----------
           if git ls-remote --exit-code --tags origin "$NEW_TAG" >/dev/null; then
@@ -118,10 +118,12 @@ jobs:
           # ---------- 2 处理 Release ----------
           if gh release view "$NEW_TAG" >/dev/null 2>&1; then
             echo "✏️  Release 已存在，使用自动生成的内容更新它"
-            gh release edit "$NEW_TAG" --generate-notes
+            gh release edit "$NEW_TAG" \
+            --title "$RELEASE_TITLE" \
+            --notes ""
           else
             echo "🎉  创建新 Release 并自动生成内容"
             gh release create "$NEW_TAG" \
-              --title "🚀 $NEW_TAG 发布" \
-              --generate-notes
+              --title "$RELEASE_TITLE" \
+              --notes ""
           fi
