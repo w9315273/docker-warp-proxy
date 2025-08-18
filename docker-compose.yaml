@@ -7,7 +7,6 @@ services:
       - "1080:1080/tcp"
       - "1080:1080/udp"
     environment:
-      TZ: "Asia/Seoul"
       WARP_PROXY_PORT: "1080"
       WARP_LICENSE_KEY: ""
       WARP_TOKEN_URL: ""
