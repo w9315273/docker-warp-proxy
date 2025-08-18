@@ -28,7 +28,6 @@ docker run -d \
   -p 1080:1080/tcp \
   -p 1080:1080/udp \
   -v ./warp-data:/var/lib/cloudflare-warp \
-  -e TZ=Asia/Seoul \
   -e WARP_PROXY_PORT=1080 \
   -e WARP_LICENSE_KEY= "" \    # 可选, 你的LICENSE_KEY \
   -e WARP_TOKEN_URL= "" \       # 可选, 获取到的TOKEN_URL \
@@ -49,7 +48,6 @@ services:
       - "1080:1080/tcp"
       - "1080:1080/udp"
     environment:
-      TZ: "Asia/Seoul"
       WARP_PROXY_PORT: "1080"
       WARP_LICENSE_KEY: ""    # 可选, 你的LICENSE_KEY
       WARP_TOKEN_URL: ""      # 可选, 获取到的TOKEN_URL
