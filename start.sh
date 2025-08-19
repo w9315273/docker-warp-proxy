@@ -2,7 +2,7 @@
 set -e
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
-log "构建版本: $(cat /VERSION 2>/dev/null || echo unknown)"
+log "构建版本:  $(cat /VERSION 2>/dev/null || echo unknown)"
 WARP_VER="$(dpkg-query -W -f='${Version}\n' cloudflare-warp 2>/dev/null | sed 's/-.*$//' || true)"
 [ -z "$WARP_VER" ] && WARP_VER="unknown"
 log "WARP 版本: ${WARP_VER}"
@@ -17,7 +17,7 @@ sleep 2
 WARP_STATUS=$(warp-cli --accept-tos registration show 2>&1 || true)
 ACCOUNT_TYPE=$(echo "$WARP_STATUS" | awk -F ': ' '/Account type:/ {print $2}' | xargs)
 if [ -n "$ACCOUNT_TYPE" ]; then
-    log "已登陆 $ACCOUNT_TYPE"
+    log "$ACCOUNT_TYPE 已登陆"
     if [ -n "$WARP_LICENSE_KEY" ] && [ "$ACCOUNT_TYPE" != "Team" ]; then
         CUR_LICENSE=$(echo "$WARP_STATUS" | awk -F ': ' '/License:/ {print $2}' | xargs)
         if [ "$CUR_LICENSE" != "$WARP_LICENSE_KEY" ]; then
@@ -62,13 +62,13 @@ else
         sleep 1
     done
     if [ -z "$ACCOUNT_TYPE" ]; then
-        log "warp 注册信息未生效, 启动失败"
+        log "WARP 注册信息未生效, 启动失败"
         pkill -f warp-svc
         exit 4
     fi
 fi
 
-log "等待 WARP 连接建立..."
+log "WARP 等待连接建立..."
 warp-cli --accept-tos connect 1>/dev/null
 for i in {1..15}; do
     if LC_ALL=C warp-cli --accept-tos status | grep -q "Status update: Connected"; then
@@ -83,6 +83,6 @@ for i in {1..15}; do
 done
 log "WARP 连接成功"
 
-log "启动 SOCKS5 代理服务, 监听端口: ${WARP_PROXY_PORT}"
+log "SOCKS5 代理服务启动, 监听端口: ${WARP_PROXY_PORT}"
 sed -i "s/{{WARP_PROXY_PORT}}/${WARP_PROXY_PORT}/g" /etc/danted.conf
 /usr/sbin/danted -f /etc/danted.conf >/dev/null
