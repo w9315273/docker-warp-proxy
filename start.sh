@@ -2,7 +2,7 @@
 set -e
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
-log "构建版本:  $(cat /VERSION 2>/dev/null || echo unknown)"
+log "构建版本: $(cat /VERSION 2>/dev/null || echo unknown)"
 WARP_VER="$(dpkg-query -W -f='${Version}\n' cloudflare-warp 2>/dev/null | sed 's/-.*$//' || true)"
 [ -z "$WARP_VER" ] && WARP_VER="unknown"
 log "WARP 版本: ${WARP_VER}"
