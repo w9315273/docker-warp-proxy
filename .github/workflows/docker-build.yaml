@@ -26,23 +26,37 @@ jobs:
           curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
             | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] \
-            https://pkg.cloudflareclient.com/ $(lsb_release -c -s) main" \
+          https://pkg.cloudflareclient.com/ $(lsb_release -c -s) main" \
             | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
           sudo apt-get update -qq
-          remote=$(apt-cache policy cloudflare-warp | awk '/Candidate:/ {print $2}')
-          echo "remote=$remote" >> $GITHUB_OUTPUT
+          remote=$(apt-cache policy cloudflare-warp | awk -F': *' '/Candidate:/ {print $2}')
+          if [[ -z "${remote}" || "${remote}" == "(none)" ]]; then
+            remote="0"
+          fi
+          echo "remote=${remote}" >> "$GITHUB_OUTPUT"
 
       - name: 读取最近发布的 WARP 版本
         id: local
+        shell: bash
         run: |
+          set -euo pipefail
           git fetch --tags --force
-          last_tag=$(git describe --tags --abbrev=0 || echo "none")
-          if [[ "$last_tag" =~ \+warp([0-9.]+)$ ]]; then
-            local_ver="${BASH_REMATCH[1]}"
+
+          last_tag=$(git tag --list '*+WARP*' --sort=-creatordate | head -n 1 || true)
+
+          if [[ -n "${last_tag}" ]]; then
+            shopt -s nocasematch
+            if [[ "${last_tag}" =~ \+warp\.?([0-9.]+)$ ]]; then
+              local_ver="${BASH_REMATCH[1]}"
+            else
+              local_ver="0"
+            fi
+            shopt -u nocasematch
           else
             local_ver="0"
           fi
-          echo "local=$local_ver" >> $GITHUB_OUTPUT
+
+          echo "local=${local_ver}" >> "$GITHUB_OUTPUT"
 
       - name: 版本比较
         id: vercmp
