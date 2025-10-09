@@ -1,6 +1,6 @@
 # Docker WARP Proxy
 
-### Cloudflare WARP + Socks5 一键容器代理 支持UDP
+### Cloudflare WARP 一键容器代理 支持UDP
 ### 配置自动注册, 免费账号/LICENSE/ZeroTrust 3种模式
 <br><br>
 
@@ -28,7 +28,8 @@ docker run -d \
   -p 1080:1080/tcp \
   -p 1080:1080/udp \
   -v ./warp-data:/var/lib/cloudflare-warp \
-  -e WARP_PROXY_PORT=1080 \
+  -e SOCKS5_PROXY_PORT=1080 \
+  -e HTTP_PROXY_PORT=1081 \
   -e WARP_LICENSE_KEY= "" \    # 可选, 你的LICENSE_KEY \
   -e WARP_TOKEN_URL= "" \       # 可选, 获取到的TOKEN_URL \
   --cap-add NET_ADMIN \
@@ -47,8 +48,10 @@ services:
     ports:
       - "1080:1080/tcp"
       - "1080:1080/udp"
+      - "1081:1081/tcp"
     environment:
-      WARP_PROXY_PORT: "1080"
+      SOCKS5_PROXY_PORT: "1080"
+      HTTP_PROXY_PORT: "1081"
       WARP_LICENSE_KEY: ""    # 可选, 你的LICENSE_KEY
       WARP_TOKEN_URL: ""      # 可选, 获取到的TOKEN_URL
     volumes:
@@ -65,5 +68,6 @@ services:
 ## 测试
 ```bash
 curl --socks5-hostname 127.0.0.1:1080 https://www.cloudflare.com/cdn-cgi/trace/
+curl --proxy http://127.0.0.1:1081 https://www.cloudflare.com/cdn-cgi/trace/
 ```
 返回字段中 `warp=on` 或 `warp=plus` 表示成功
