@@ -6,10 +6,12 @@ services:
     ports:
       - "1080:1080/tcp"
       - "1080:1080/udp"
+      - "1081:1081/tcp"
     environment:
-      WARP_PROXY_PORT: "1080"
-      WARP_LICENSE_KEY: ""
-      WARP_TOKEN_URL: ""
+      SOCKS5_PROXY_PORT: "1080"
+      HTTP_PROXY_PORT: "1081"
+      WARP_LICENSE_KEY: "${WARP_LICENSE_KEY}"
+      WARP_TOKEN_URL: "${WARP_TOKEN_URL}"
     volumes:
       - ./WARP:/var/lib/cloudflare-warp
     cap_add:

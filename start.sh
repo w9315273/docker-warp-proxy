@@ -7,10 +7,6 @@ WARP_VER="$(dpkg-query -W -f='${Version}\n' cloudflare-warp 2>/dev/null | sed 's
 [ -z "$WARP_VER" ] && WARP_VER="unknown"
 log "WARP 版本: ${WARP_VER}"
 
-WARP_PROXY_PORT="${WARP_PROXY_PORT:-1080}"
-WARP_LICENSE_KEY="${WARP_LICENSE_KEY:-}"
-WARP_TOKEN_URL="${WARP_TOKEN_URL:-}"
-
 warp-svc > /dev/null 2>&1 &
 sleep 2
 
@@ -83,6 +79,30 @@ for i in {1..15}; do
 done
 log "WARP 连接成功"
 
-log "SOCKS5 代理服务启动, 监听端口: ${WARP_PROXY_PORT}"
-sed -i "s/{{WARP_PROXY_PORT}}/${WARP_PROXY_PORT}/g" /etc/danted.conf
-/usr/sbin/danted -f /etc/danted.conf >/dev/null
+log "SOCKS5 代理服务启动, 监听端口: ${SOCKS5_PROXY_PORT}"
+cat >/tmp/danted.conf <<EOF
+logoutput: /dev/null
+internal: 0.0.0.0 port = ${SOCKS5_PROXY_PORT}
+external: CloudflareWARP
+
+user.privileged: root
+user.unprivileged: nobody
+
+socksmethod: none
+
+client pass {
+    from: 0.0.0.0/0 to: 0.0.0.0/0
+}
+
+socks pass {
+    from: 0.0.0.0/0 to: 0.0.0.0/0
+}
+EOF
+/usr/sbin/danted -f /tmp/danted.conf >/dev/null 2>&1 &
+
+log "HTTP 代理服务启动, 监听端口: ${HTTP_PROXY_PORT}"
+cat >/tmp/privoxy.conf <<EOF
+listen-address 0.0.0.0:${HTTP_PROXY_PORT}
+EOF
+/usr/sbin/privoxy --no-daemon /tmp/privoxy.conf >/dev/null 2>&1 &
+tail -f /dev/null
