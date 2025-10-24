@@ -144,7 +144,7 @@ jobs:
       - name: 屏蔽机密日志
         run: |
           echo "::add-mask::${{ secrets.MY_GIT_REGISTRY }}"
-          echo "::add-mask::${{ secrets.MY_GIT_IMAGES }}"
+          echo "::add-mask::${{ secrets.MY_GIT_IMAGE }}"
           echo "::add-mask::${{ secrets.MY_GIT_USER }}"
 
       - name: 登录 Gitea Registry
@@ -158,14 +158,14 @@ jobs:
         run: |
           set -euo pipefail
           SRC="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          DST="${{ secrets.MY_GIT_IMAGES }}:latest"
+          DST="${{ secrets.MY_GIT_IMAGE }}:latest"
           echo "COPY MANIFEST: ${SRC} -> ${DST}"
           docker buildx imagetools create -t "${DST}" "${SRC}"
 
       - name: 推送 Git Tag 到 Gitea
         env:
           REG: ${{ secrets.MY_GIT_REGISTRY }}
-          IMG: ${{ secrets.MY_GIT_IMAGES }}
+          IMG: ${{ secrets.MY_GIT_IMAGE }}
           USER: ${{ secrets.MY_GIT_USER }}
           TOKEN: ${{ secrets.MY_GIT_TOKEN }}
           TAG: ${{ steps.codever.outputs.code }}+WARP.${{ needs.check.outputs.warp }}
@@ -194,7 +194,7 @@ jobs:
       - name: 在 Gitea 创建或更新 Release
         env:
           REG: ${{ secrets.MY_GIT_REGISTRY }}
-          IMG: ${{ secrets.MY_GIT_IMAGES }}
+          IMG: ${{ secrets.MY_GIT_IMAGE }}
           TOKEN: ${{ secrets.MY_GIT_TOKEN }}
           TAG: ${{ steps.codever.outputs.code }}+WARP.${{ needs.check.outputs.warp }}
         run: |
