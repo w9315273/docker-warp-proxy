@@ -140,3 +140,78 @@ jobs:
               --title "$RELEASE_TITLE" \
               --notes ""
           fi
+
+      - name: 屏蔽机密日志
+        run: |
+          echo "::add-mask::${{ secrets.MY_GIT_REGISTRY }}"
+          echo "::add-mask::${{ secrets.MY_GIT_IMAGES }}"
+          echo "::add-mask::${{ secrets.MY_GIT_USER }}"
+
+      - name: 登录 Gitea Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.MY_GIT_REGISTRY }}
+          username: ${{ secrets.MY_GIT_USER }}
+          password: ${{ secrets.MY_GIT_TOKEN }}
+
+      - name: 将 GHCR 的 latest 复制到 Gitea
+        run: |
+          set -euo pipefail
+          SRC="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          DST="${{ secrets.MY_GIT_IMAGES }}:latest"
+          echo "COPY MANIFEST: ${SRC} -> ${DST}"
+          docker buildx imagetools create -t "${DST}" "${SRC}"
+
+      - name: 推送 Git Tag 到 Gitea 仓库
+        env:
+          REG:   ${{ secrets.MY_GIT_REGISTRY }}
+          IMG:   ${{ secrets.MY_GIT_IMAGES }}
+          USER:  ${{ secrets.MY_GIT_USER }}
+          TOKEN: ${{ secrets.MY_GIT_TOKEN }}
+          TAG:   ${{ steps.codever.outputs.code }}+WARP.${{ needs.check.outputs.warp }}
+        run: |
+          set -euo pipefail
+          REPO_PATH="${IMG#${REG}/}"
+          HTTPS="https://${REG}/${REPO_PATH}.git"
+
+          if base64 --help 2>&1 | grep -qi '\-w'; then
+            AUTH=$(printf "%s:%s" "$USER" "$TOKEN" | base64 -w0)
+          else
+            AUTH=$(printf "%s:%s" "$USER" "$TOKEN" | base64)
+          fi
+          git config http."https://${REG}/".extraheader "Authorization: Basic ${AUTH}"
+
+          git remote | grep -q '^gitea$' || git remote add gitea "$HTTPS"
+          git remote set-url gitea "$HTTPS"
+
+          if git ls-remote --exit-code --tags gitea "$TAG" >/dev/null 2>&1; then
+            echo "🟢 Gitea 已有 Tag $TAG"
+          else
+            echo "🚀 推送 Tag 到 Gitea：$TAG"
+            git push gitea "refs/tags/${TAG}:refs/tags/${TAG}"
+          fi
+
+      - name: 在 Gitea 创建或更新 Release
+        env:
+          REG:   ${{ secrets.MY_GIT_REGISTRY }}
+          IMG:   ${{ secrets.MY_GIT_IMAGES }}
+          TOKEN: ${{ secrets.MY_GIT_TOKEN }}
+          TAG:   ${{ steps.codever.outputs.code }}+WARP.${{ needs.check.outputs.warp }}
+        run: |
+          set -euo pipefail
+          REPO_PATH="${IMG#${REG}/}"
+          API="https://${REG}/api/v1/repos/${REPO_PATH}"
+
+          if curl -sf -H "Authorization: token ${TOKEN}" "${API}/releases/tags/${TAG}" >/dev/null 2>&1; then
+            echo "✏️  更新 Gitea Release：${TAG}"
+            curl -sS -X PATCH "${API}/releases/tags/${TAG}" \
+              -H "Authorization: token ${TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"${TAG}\",\"prerelease\":false}" >/dev/null
+          else
+            echo "🎉  创建 Gitea Release：${TAG}"
+            curl -sS -X POST "${API}/releases" \
+              -H "Authorization: token ${TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"${TAG}\",\"name\":\"${TAG}\",\"prerelease\":false}" >/dev/null
+          fi
