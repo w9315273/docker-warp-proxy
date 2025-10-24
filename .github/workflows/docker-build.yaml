@@ -2,7 +2,7 @@ name: 构建并推送 Docker 镜像（自动）
 
 on:
   schedule:
-    - cron: "0 1 * * 3"
+    - cron: '0 1 * * 3'
   workflow_dispatch: {}
 
 env:
@@ -13,8 +13,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      build: ${{ steps.vercmp.outputs.build }}
-      warp: ${{ steps.vercmp.outputs.warp }}
+      build: ${{ steps.vercmp.outputs.build }} 
+      warp:  ${{ steps.vercmp.outputs.warp }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +41,9 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --tags --force
+
           last_tag=$(git tag --list '*+WARP*' --sort=-creatordate | head -n 1 || true)
+
           if [[ -n "${last_tag}" ]]; then
             shopt -s nocasematch
             if [[ "${last_tag}" =~ \+warp\.?([0-9.]+)$ ]]; then
@@ -53,13 +55,14 @@ jobs:
           else
             local_ver="0"
           fi
+
           echo "local=${local_ver}" >> "$GITHUB_OUTPUT"
 
       - name: 版本比较
         id: vercmp
         run: |
           if dpkg --compare-versions "${{ steps.remote.outputs.remote }}" gt "${{ steps.local.outputs.local }}"; then
-            echo "build=true" >> $GITHUB_OUTPUT
+            echo "build=true"  >> $GITHUB_OUTPUT
             echo "warp=${{ steps.remote.outputs.remote }}" >> $GITHUB_OUTPUT
           else
             echo "build=false" >> $GITHUB_OUTPUT
@@ -71,7 +74,7 @@ jobs:
     if: needs.check.outputs.build == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write 
       packages: write
     steps:
       - name: 检出仓库
@@ -107,7 +110,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: 创建或更新 GitHub Tag & Release
+      - name: 创建或更新 Tag & Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -116,6 +119,7 @@ jobs:
           NEW_TAG="${CODE_VER}+WARP.${WARP_VER}"
           RELEASE_TITLE="${CODE_VER}+WARP.${WARP_VER}"
 
+          # ---------- 1 处理 Tag ----------
           if git ls-remote --exit-code --tags origin "$NEW_TAG" >/dev/null; then
             echo "🟢 Tag $NEW_TAG 已存在，跳过 push"
           else
@@ -124,19 +128,20 @@ jobs:
             git push origin "$NEW_TAG"
           fi
 
+          # ---------- 2 处理 Release ----------
           if gh release view "$NEW_TAG" >/dev/null 2>&1; then
-            echo "✏️  Release 已存在，更新"
+            echo "✏️  Release 已存在，使用自动生成的内容更新它"
             gh release edit "$NEW_TAG" \
-              --title "$RELEASE_TITLE" \
-              --notes ""
+            --title "$RELEASE_TITLE" \
+            --notes ""
           else
-            echo "🎉  创建新 Release"
+            echo "🎉  创建新 Release 并自动生成内容"
             gh release create "$NEW_TAG" \
               --title "$RELEASE_TITLE" \
               --notes ""
           fi
 
-      - name: 屏蔽机密日志
+  - name: 屏蔽机密日志
         run: |
           echo "::add-mask::${{ secrets.MY_GIT_REGISTRY }}"
           echo "::add-mask::${{ secrets.MY_GIT_IMAGES }}"
@@ -182,7 +187,7 @@ jobs:
           if git ls-remote --exit-code --tags gitea "$TAG" >/dev/null 2>&1; then
             echo "🟢 Gitea 已有 Tag $TAG"
           else
-            echo "🚀 推送 Tag 到 Gitea：$TAG"
+            echo "🚀 推送 Tag 到 Gitea: $TAG"
             git push gitea "refs/tags/${TAG}:refs/tags/${TAG}"
           fi
 
@@ -198,13 +203,13 @@ jobs:
           API="https://${REG}/api/v1/repos/${REPO_PATH}"
 
           if curl -sf -H "Authorization: token ${TOKEN}" "${API}/releases/tags/${TAG}" >/dev/null 2>&1; then
-            echo "✏️  更新 Gitea Release：${TAG}"
+            echo "✏️  更新 Gitea Release: ${TAG}"
             curl -sS -X PATCH "${API}/releases/tags/${TAG}" \
               -H "Authorization: token ${TOKEN}" \
               -H "Content-Type: application/json" \
               -d "{\"name\":\"${TAG}\",\"prerelease\":false}" >/dev/null
           else
-            echo "🎉  创建 Gitea Release：${TAG}"
+            echo "🎉  创建 Gitea Release: ${TAG}"
             curl -sS -X POST "${API}/releases" \
               -H "Authorization: token ${TOKEN}" \
               -H "Content-Type: application/json" \
