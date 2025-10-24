@@ -141,7 +141,7 @@ jobs:
               --notes ""
           fi
 
-  - name: 屏蔽机密日志
+      - name: 屏蔽机密日志
         run: |
           echo "::add-mask::${{ secrets.MY_GIT_REGISTRY }}"
           echo "::add-mask::${{ secrets.MY_GIT_IMAGES }}"
