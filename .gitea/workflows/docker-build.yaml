@@ -1,4 +1,4 @@
-name: 构建并推送 Docker 镜像（自动）
+name: 构建并推送 Docker 镜像(自动)
 
 on:
   schedule:
@@ -11,10 +11,10 @@ env:
 
 jobs:
   check:
-    runs-on: [ "ubuntu-latest", "high" ]
+    runs-on: ["ubuntu-latest", "high"]
     outputs:
       build: ${{ steps.vercmp.outputs.build }}
-      warp:  ${{ steps.vercmp.outputs.warp }}
+      warp: ${{ steps.vercmp.outputs.warp }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,7 +62,7 @@ jobs:
         id: vercmp
         run: |
           if dpkg --compare-versions "${{ steps.remote.outputs.remote }}" gt "${{ steps.local.outputs.local }}"; then
-            echo "build=true"  >> $GITHUB_OUTPUT
+            echo "build=true" >> $GITHUB_OUTPUT
             echo "warp=${{ steps.remote.outputs.remote }}" >> $GITHUB_OUTPUT
           else
             echo "build=false" >> $GITHUB_OUTPUT
@@ -72,7 +72,7 @@ jobs:
   build-and-push:
     needs: check
     if: needs.check.outputs.build == 'true'
-    runs-on: [ "ubuntu-latest", "high" ]
+    runs-on: ["ubuntu-latest", "high"]
     permissions:
       contents: write
       packages: write
@@ -135,10 +135,10 @@ jobs:
       - name: 推送 Git Tag 到 Gitea
         env:
           REGISTRY_HOST: ${{ env.REGISTRY }}
-          REPO:          ${{ env.IMAGE_NAME }}
-          TOKEN:         ${{ secrets.CI_TOKEN }}
-          USERNAME:      ${{ secrets.CI_USER }}
-          TAG:           ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
+          REPO: ${{ env.IMAGE_NAME }}
+          TOKEN: ${{ secrets.CI_TOKEN }}
+          USERNAME: ${{ secrets.CI_USER }}
+          TAG: ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
         run: |
           set -euo pipefail
           HTTPS="https://${REGISTRY_HOST}/${REPO}.git"
@@ -167,10 +167,10 @@ jobs:
       - name: 在 Gitea 创建或更新 Release
         env:
           REGISTRY_HOST: ${{ env.REGISTRY }}
-          REPO:          ${{ env.IMAGE_NAME }}
-          TOKEN:         ${{ secrets.CI_TOKEN }}
-          TAG:           ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
-          TITLE:         ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
+          REPO: ${{ env.IMAGE_NAME }}
+          TOKEN: ${{ secrets.CI_TOKEN }}
+          TAG: ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
+          TITLE: ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
         run: |
           set -euo pipefail
           API="https://${REGISTRY_HOST}/api/v1/repos/${REPO}"
