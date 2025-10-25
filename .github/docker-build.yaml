@@ -1,0 +1,142 @@
+name: 构建并推送 Docker 镜像（自动）
+
+on:
+#  schedule:
+#    - cron: '0 1 * * 3'
+  workflow_dispatch: {}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.vercmp.outputs.build }}
+      warp: ${{ steps.vercmp.outputs.warp }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 获取远程 WARP 版本
+        id: remote
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y curl gnupg lsb-release
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
+            | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] \
+          https://pkg.cloudflareclient.com/ $(lsb_release -c -s) main" \
+            | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update -qq
+          remote=$(apt-cache policy cloudflare-warp | awk -F': *' '/Candidate:/ {print $2}')
+          if [[ -z "${remote}" || "${remote}" == "(none)" ]]; then
+            remote="0"
+          fi
+          echo "remote=${remote}" >> "$GITHUB_OUTPUT"
+
+      - name: 读取最近发布的 WARP 版本
+        id: local
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          last_tag=$(git tag --list '*+WARP*' --sort=-creatordate | head -n 1 || true)
+
+          if [[ -n "${last_tag}" ]]; then
+            shopt -s nocasematch
+            if [[ "${last_tag}" =~ \+warp\.?([0-9.]+)$ ]]; then
+              local_ver="${BASH_REMATCH[1]}"
+            else
+              local_ver="0"
+            fi
+            shopt -u nocasematch
+          else
+            local_ver="0"
+          fi
+
+          echo "local=${local_ver}" >> "$GITHUB_OUTPUT"
+
+      - name: 版本比较
+        id: vercmp
+        run: |
+          if dpkg --compare-versions "${{ steps.remote.outputs.remote }}" gt "${{ steps.local.outputs.local }}"; then
+            echo "build=true" >> $GITHUB_OUTPUT
+            echo "warp=${{ steps.remote.outputs.remote }}" >> $GITHUB_OUTPUT
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+            echo "warp=${{ steps.remote.outputs.remote }}" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-push:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 读取代码版本号
+        id: codever
+        run: |
+          CODE=$(cat VERSION | tr -d ' \n')
+          echo "code=$CODE" >> $GITHUB_OUTPUT
+
+      - name: 生成镜像元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.codever.outputs.code }}+WARP.${{ needs.check.outputs.warp }}
+            type=raw,value=latest
+
+      - name: 构建并推送 Docker 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: 创建或更新 Tag & Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CODE_VER="${{ steps.codever.outputs.code }}"
+          WARP_VER="${{ needs.check.outputs.warp }}"
+          NEW_TAG="${CODE_VER}+WARP.${WARP_VER}"
+          RELEASE_TITLE="${CODE_VER}+WARP.${WARP_VER}"
+
+          # 处理 Tag
+          if git ls-remote --exit-code --tags origin "$NEW_TAG" >/dev/null; then
+            echo "🟢 Tag $NEW_TAG 已存在,跳过 push"
+          else
+            echo "🚀 推送新 Tag $NEW_TAG"
+            git tag "$NEW_TAG"
+            git push origin "$NEW_TAG"
+          fi
+
+          # 处理 Release
+          if gh release view "$NEW_TAG" >/dev/null 2>&1; then
+            echo "✏️  Release 已存在,使用自动生成的内容更新它"
+            gh release edit "$NEW_TAG" \
+              --title "$RELEASE_TITLE" \
+              --notes ""
+          else
+            echo "🎉 创建新 Release 并自动生成内容"
+            gh release create "$NEW_TAG" \
+              --title "$RELEASE_TITLE" \
+              --notes ""
+          fi
