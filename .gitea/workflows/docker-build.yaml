@@ -97,10 +97,10 @@ jobs:
           docker buildx version
 
       - name: 初始化 Buildx
-  run: |
-    set -euo pipefail
-    docker buildx create --name ci-builder --use || docker buildx use ci-builder
-    docker buildx inspect --bootstrap
+        run: |
+          set -euo pipefail
+          docker buildx create --name ci-builder --use || docker buildx use ci-builder
+          docker buildx inspect --bootstrap
 
       - name: 登录 Gitea Registry
         uses: docker/login-action@v3
