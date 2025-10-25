@@ -91,7 +91,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.docker/cli-plugins
-          curl -fsSL https://github.com/docker/buildx/releases/download/v0.14.1/buildx-v0.14.1.linux-amd64 \
+          curl -fsSL https://github.com/docker/buildx/releases/download/v0.29.1/buildx-v0.29.1.linux-amd64 \
             -o ~/.docker/cli-plugins/docker-buildx
           chmod +x ~/.docker/cli-plugins/docker-buildx
           docker buildx version
