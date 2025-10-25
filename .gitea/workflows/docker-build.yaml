@@ -72,7 +72,7 @@ jobs:
   build-and-push:
     needs: check
     if: needs.check.outputs.build == 'true'
-    runs-on: [ "ubuntu-latest", "high" ]
+    runs-on: high
     permissions:
       contents: write
       packages: write
