@@ -21,14 +21,14 @@ jobs:
       - name: 获取远程 WARP 版本
         id: remote
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y curl gnupg lsb-release
+          apt-get update -qq
+          apt-get install -y curl gnupg lsb-release
           curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
-            | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+            | gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] \
           https://pkg.cloudflareclient.com/ $(lsb_release -c -s) main" \
-            | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
-          sudo apt-get update -qq
+            | tee /etc/apt/sources.list.d/cloudflare-client.list
+          apt-get update -qq
           remote=$(apt-cache policy cloudflare-warp | awk -F': *' '/Candidate:/ {print $2}')
           if [[ -z "${remote}" || "${remote}" == "(none)" ]]; then
             remote="0"
@@ -121,7 +121,6 @@ jobs:
           set -euo pipefail
           HTTPS="https://${REGISTRY_HOST}/${REPO}.git"
 
-          # 为 HTTPS 远程注入 Basic Auth, 不影响现有 origin
           if base64 --help 2>&1 | grep -qi '\-w'; then
             AUTH=$(printf "%s:%s" "$USERNAME" "$TOKEN" | base64 -w0)
           else
