@@ -109,6 +109,9 @@ jobs:
             type=raw,value=${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
             type=raw,value=latest
 
+      - name: 安装 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v6
         with:
