@@ -80,12 +80,27 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
-      - name: 安装 Docker CLI Buildx
+      - name: 安装 Docker CLI
         run: |
+          set -euo pipefail
           apt-get update -qq
-          apt-get install -y docker.io docker-buildx-plugin
+          apt-get install -y docker.io curl
           docker --version
-          echo "Docker CLI installed successfully"
+
+      - name: 安装 Buildx
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.docker/cli-plugins
+          curl -fsSL https://github.com/docker/buildx/releases/download/v0.14.1/buildx-v0.14.1.linux-amd64 \
+            -o ~/.docker/cli-plugins/docker-buildx
+          chmod +x ~/.docker/cli-plugins/docker-buildx
+          docker buildx version
+
+      - name: 初始化 Buildx
+  run: |
+    set -euo pipefail
+    docker buildx create --name ci-builder --use || docker buildx use ci-builder
+    docker buildx inspect --bootstrap
 
       - name: 登录 Gitea Registry
         uses: docker/login-action@v3
