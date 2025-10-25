@@ -80,6 +80,13 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
+      - name: 安装 Docker CLI
+        run: |
+          apt-get update -qq
+          apt-get install -y docker.io
+          docker --version
+          echo "Docker CLI installed successfully"
+
       - name: 登录 Gitea Registry
         uses: docker/login-action@v3
         with:
