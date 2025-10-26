@@ -48,11 +48,11 @@ jobs:
           set -euo pipefail
           git fetch --tags --force
           
-          last_tag=$(git tag --list '*-warp*' --sort=-creatordate | head -n 1 || true)
+          last_tag=$(git tag --list '*-WARP*' --sort=-creatordate | head -n 1 || true)
           
           if [[ -n "${last_tag}" ]]; then
             shopt -s nocasematch
-            if [[ "${last_tag}" =~ -warp\.?([0-9.]+)$ ]]; then
+            if [[ "${last_tag}" =~ -WARP\.?([0-9.]+)$ ]]; then
               local_ver="${BASH_REMATCH[1]}"
             else
               local_ver="0"
