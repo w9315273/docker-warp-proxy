@@ -7,11 +7,11 @@ on:
 
 env:
   REGISTRY: git.dlxorgus.com
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_REPO: ${{ github.repository }}
 
 jobs:
   check:
-    runs-on: ["ubuntu-latest", "high"]
+    runs-on: ubuntu-latest
     outputs:
       build: ${{ steps.vercmp.outputs.build }}
       warp: ${{ steps.vercmp.outputs.warp }}
@@ -23,16 +23,20 @@ jobs:
         run: |
           apt-get update -qq
           apt-get install -y curl gnupg lsb-release
+          
           curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
             | gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] \
-          https://pkg.cloudflareclient.com/ $(lsb_release -c -s) main" \
+          
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -c -s) main" \
             | tee /etc/apt/sources.list.d/cloudflare-client.list
+          
           apt-get update -qq
           remote=$(apt-cache policy cloudflare-warp | awk -F': *' '/Candidate:/ {print $2}')
+          
           if [[ -z "${remote}" || "${remote}" == "(none)" ]]; then
             remote="0"
           fi
+          
           echo "remote=${remote}" >> "$GITHUB_OUTPUT"
 
       - name: 读取最近发布的 WARP 版本
@@ -41,9 +45,9 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --tags --force
-
+          
           last_tag=$(git tag --list '*-warp*' --sort=-creatordate | head -n 1 || true)
-
+          
           if [[ -n "${last_tag}" ]]; then
             shopt -s nocasematch
             if [[ "${last_tag}" =~ -warp\.?([0-9.]+)$ ]]; then
@@ -55,7 +59,7 @@ jobs:
           else
             local_ver="0"
           fi
-
+          
           echo "local=${local_ver}" >> "$GITHUB_OUTPUT"
 
       - name: 版本比较
@@ -72,7 +76,7 @@ jobs:
   build-and-push:
     needs: check
     if: needs.check.outputs.build == 'true'
-    runs-on: ["ubuntu-latest", "high"]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
@@ -80,27 +84,13 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
-      - name: 安装 Docker CLI
-        run: |
-          set -euo pipefail
-          apt-get update -qq
-          apt-get install -y docker.io curl
-          docker --version
+      - name: 设置 QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: 安装 Buildx
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.docker/cli-plugins
-          curl -fsSL https://github.com/docker/buildx/releases/download/v0.29.1/buildx-v0.29.1.linux-amd64 \
-            -o ~/.docker/cli-plugins/docker-buildx
-          chmod +x ~/.docker/cli-plugins/docker-buildx
-          docker buildx version
-
-      - name: 初始化 Buildx
-        run: |
-          set -euo pipefail
-          docker buildx create --name ci-builder --use || docker buildx use ci-builder
-          docker buildx inspect --bootstrap
+      - name: 设置 Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
 
       - name: 登录 Gitea Registry
         uses: docker/login-action@v3
@@ -113,13 +103,13 @@ jobs:
         id: codever
         run: |
           CODE=$(tr -d ' \n' < VERSION)
-          echo "code=$CODE" >> $GITHUB_OUTPUT
+          echo "code=${CODE}" >> $GITHUB_OUTPUT
 
       - name: 生成镜像元数据
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}
           tags: |
             type=raw,value=${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
             type=raw,value=latest
@@ -135,54 +125,59 @@ jobs:
       - name: 推送 Git Tag 到 Gitea
         env:
           REGISTRY_HOST: ${{ env.REGISTRY }}
-          REPO: ${{ env.IMAGE_NAME }}
+          REPO: ${{ env.IMAGE_REPO }}
           TOKEN: ${{ secrets.CI_TOKEN }}
           USERNAME: ${{ secrets.CI_USER }}
           TAG: ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
         run: |
           set -euo pipefail
           HTTPS="https://${REGISTRY_HOST}/${REPO}.git"
-
+          
+          # 生成 Base64 认证
           if base64 --help 2>&1 | grep -qi '\-w'; then
-            AUTH=$(printf "%s:%s" "$USERNAME" "$TOKEN" | base64 -w0)
+            AUTH=$(printf "%s:%s" "${USERNAME}" "${TOKEN}" | base64 -w0)
           else
-            AUTH=$(printf "%s:%s" "$USERNAME" "$TOKEN" | base64)
+            AUTH=$(printf "%s:%s" "${USERNAME}" "${TOKEN}" | base64)
           fi
+          
           git config http."https://${REGISTRY_HOST}/".extraheader "Authorization: Basic ${AUTH}"
-
+          
+          # 设置 Gitea 远程仓库
           if git remote | grep -q '^gitea$'; then
-            git remote set-url gitea "$HTTPS"
+            git remote set-url gitea "${HTTPS}"
           else
-            git remote add gitea "$HTTPS"
+            git remote add gitea "${HTTPS}"
           fi
-
-          if git ls-remote --exit-code --tags gitea "$TAG" >/dev/null 2>&1; then
-            echo "Gitea 已有 Tag $TAG"
+          
+          # 推送 Tag
+          if git ls-remote --exit-code --tags gitea "${TAG}" >/dev/null 2>&1; then
+            echo "🟢 Gitea 已有 Tag ${TAG}"
           else
-            echo "推送 Tag 到 Gitea: $TAG"
-            git tag -f "$TAG" || true
+            echo "🚀 推送 Tag 到 Gitea: ${TAG}"
+            git tag -f "${TAG}" || true
             git push gitea "refs/tags/${TAG}:refs/tags/${TAG}"
           fi
 
-      - name: 在 Gitea 创建或更新 Release
+      - name: 创建或更新 Gitea Release
         env:
           REGISTRY_HOST: ${{ env.REGISTRY }}
-          REPO: ${{ env.IMAGE_NAME }}
+          REPO: ${{ env.IMAGE_REPO }}
           TOKEN: ${{ secrets.CI_TOKEN }}
           TAG: ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
           TITLE: ${{ steps.codever.outputs.code }}-warp.${{ needs.check.outputs.warp }}
         run: |
           set -euo pipefail
           API="https://${REGISTRY_HOST}/api/v1/repos/${REPO}"
-
+          
+          # 检查 Release 是否存在
           if curl -sf -H "Authorization: token ${TOKEN}" "${API}/releases/tags/${TAG}" >/dev/null 2>&1; then
-            echo "更新 Gitea Release: ${TAG}"
+            echo "✏️  更新 Gitea Release: ${TAG}"
             curl -sS -X PATCH "${API}/releases/tags/${TAG}" \
               -H "Authorization: token ${TOKEN}" \
               -H "Content-Type: application/json" \
               -d "{\"name\":\"${TITLE}\",\"prerelease\":false}" >/dev/null
           else
-            echo "创建 Gitea Release: ${TAG}"
+            echo "🎉 创建 Gitea Release: ${TAG}"
             curl -sS -X POST "${API}/releases" \
               -H "Authorization: token ${TOKEN}" \
               -H "Content-Type: application/json" \
