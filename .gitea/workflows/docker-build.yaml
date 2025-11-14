@@ -122,39 +122,31 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: 📦 创建 Gitea Release
+      - name: 🏷️ 推送 Git Tag
         env:
           REGISTRY_HOST: ${{ env.REGISTRY }}
           REPO: ${{ env.IMAGE_REPO }}
-          TOKEN: ${{ secrets.CI_TOKEN }}
+          TOKEN: ${{ github.token }}
+          USERNAME: ${{ github.actor }}
           TAG: ${{ steps.codever.outputs.code }}-WARP.${{ needs.check.outputs.warp }}
-          TITLE: ${{ steps.codever.outputs.code }}-WARP.${{ needs.check.outputs.warp }}
         run: |
           set -euo pipefail
-          API="https://${REGISTRY_HOST}/api/v1/repos/${REPO}"
           
-          if curl -sf -H "Authorization: token ${TOKEN}" "${API}/releases/tags/${TAG}" >/dev/null 2>&1; then
-            echo "🟢 Release ${TAG} 已存在,跳过"
+          HTTPS="https://${USERNAME}:${TOKEN}@${REGISTRY_HOST}/${REPO}.git"
+          
+          if git remote | grep -q '^origin-push$'; then
+            git remote set-url origin-push "${HTTPS}"
           else
-            echo "🎉 创建 Gitea Release: ${TAG}"
-            BODY="Docker 镜像: \`${REGISTRY_HOST}/${REPO}:${TAG}\`"
-            
-            jq -n \
-              --arg tag "${TAG}" \
-              --arg name "${TITLE}" \
-              --arg body "${BODY}" \
-              '{
-                tag_name: $tag,
-                name: $name,
-                body: $body,
-                draft: false,
-                prerelease: false
-              }' | curl -sS -X POST "${API}/releases" \
-                -H "Authorization: token ${TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d @-
-            
-            echo "✅ Release 创建成功"
+            git remote add origin-push "${HTTPS}"
+          fi
+          
+          if git ls-remote --exit-code --tags origin-push "${TAG}" >/dev/null 2>&1; then
+            echo "🟢 Tag ${TAG} 已存在,跳过"
+          else
+            echo "🚀 推送 Tag: ${TAG}"
+            git tag "${TAG}"
+            git push origin-push "${TAG}"
+            echo "✅ Tag 推送成功"
           fi
 
       - name: 💥 构建失败通知 Discord
