@@ -130,16 +130,16 @@ jobs:
           REGISTRY_HOST: ${{ env.REGISTRY }}
           REPO: ${{ env.IMAGE_REPO }}
           TOKEN: ${{ secrets.CI_TOKEN }}
-          username: ${{ github.actor }}
+          USERNAME: ${{ github.actor }}
           TAG: ${{ steps.codever.outputs.code }}-WARP.${{ needs.check.outputs.warp }}
         run: |
           set -euo pipefail
           HTTPS="https://${REGISTRY_HOST}/${REPO}.git"
           
           if base64 --help 2>&1 | grep -qi '\-w'; then
-            AUTH=$(printf "%s:%s" "${username}" "${TOKEN}" | base64 -w0)
+            AUTH=$(printf "%s:%s" "${USERNAME}" "${TOKEN}" | base64 -w0)
           else
-            AUTH=$(printf "%s:%s" "${username}" "${TOKEN}" | base64)
+            AUTH=$(printf "%s:%s" "${USERNAME}" "${TOKEN}" | base64)
           fi
           
           git config http."https://${REGISTRY_HOST}/".extraheader "Authorization: Basic ${AUTH}"
