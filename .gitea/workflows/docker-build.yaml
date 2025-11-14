@@ -1,4 +1,4 @@
-name: 构建并推送 Docker 镜像
+name: 构建并推送 docker-warp-proxy 镜像
 
 on:
   schedule:
@@ -34,34 +34,25 @@ jobs:
           
           sudo apt-get update -qq
           remote=$(apt-cache policy cloudflare-warp | awk -F': *' '/Candidate:/ {print $2}')
-          
-          if [[ -z "${remote}" || "${remote}" == "(none)" ]]; then
-            remote="0"
-          fi
-          
+          [[ -z "${remote}" || "${remote}" == "(none)" ]] && remote="0"
           echo "remote=${remote}" >> "$GITHUB_OUTPUT"
 
       - name: 📖 读取本地 WARP 版本
         id: local
         shell: bash
         run: |
-          set -euo pipefail
           git fetch --tags --force
-          
           last_tag=$(git tag --list '*-WARP*' --sort=-creatordate | head -n 1 || true)
           
           if [[ -n "${last_tag}" ]]; then
-            shopt -s nocasematch
             if [[ "${last_tag}" =~ -WARP\.?([0-9.]+)$ ]]; then
               local_ver="${BASH_REMATCH[1]}"
             else
               local_ver="0"
             fi
-            shopt -u nocasematch
           else
             local_ver="0"
           fi
-          
           echo "local=${local_ver}" >> "$GITHUB_OUTPUT"
 
       - name: ⚖️ 比较版本
@@ -69,11 +60,10 @@ jobs:
         run: |
           if dpkg --compare-versions "${{ steps.remote.outputs.remote }}" gt "${{ steps.local.outputs.local }}"; then
             echo "build=true" >> $GITHUB_OUTPUT
-            echo "warp=${{ steps.remote.outputs.remote }}" >> $GITHUB_OUTPUT
           else
             echo "build=false" >> $GITHUB_OUTPUT
-            echo "warp=${{ steps.remote.outputs.remote }}" >> $GITHUB_OUTPUT
           fi
+          echo "warp=${{ steps.remote.outputs.remote }}" >> $GITHUB_OUTPUT
 
   build-and-push:
     name: 🏗️ 构建并发布
@@ -81,7 +71,7 @@ jobs:
     if: needs.check.outputs.build == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       packages: write
     steps:
       - name: 📥 检出代码
@@ -99,7 +89,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.CI_USER }}
+          username: ${{ github.actor }}
           password: ${{ secrets.CI_TOKEN }}
 
       - name: 📝 读取代码版本号
@@ -125,60 +115,26 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: 🏷️ 推送 Git Tag 到 Gitea
+      - name: 💥 构建失败通知 Discord
+        if: failure()
         env:
-          REGISTRY_HOST: ${{ env.REGISTRY }}
-          REPO: ${{ env.IMAGE_REPO }}
-          TOKEN: ${{ secrets.CI_TOKEN }}
-          USERNAME: ${{ secrets.CI_USER }}
-          TAG: ${{ steps.codever.outputs.code }}-WARP.${{ needs.check.outputs.warp }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          set -euo pipefail
-          HTTPS="https://${REGISTRY_HOST}/${REPO}.git"
-          
-          if base64 --help 2>&1 | grep -qi '\-w'; then
-            AUTH=$(printf "%s:%s" "${USERNAME}" "${TOKEN}" | base64 -w0)
-          else
-            AUTH=$(printf "%s:%s" "${USERNAME}" "${TOKEN}" | base64)
-          fi
-          
-          git config http."https://${REGISTRY_HOST}/".extraheader "Authorization: Basic ${AUTH}"
-          
-          if git remote | grep -q '^gitea$'; then
-            git remote set-url gitea "${HTTPS}"
-          else
-            git remote add gitea "${HTTPS}"
-          fi
-          
-          if git ls-remote --exit-code --tags gitea "${TAG}" >/dev/null 2>&1; then
-            echo "🟢 Gitea 已有 Tag ${TAG}"
-          else
-            echo "🚀 推送 Tag 到 Gitea: ${TAG}"
-            git tag -f "${TAG}" || true
-            git push gitea "refs/tags/${TAG}:refs/tags/${TAG}"
+          if [ -z "${DISCORD_WEBHOOK}" ]; then
+            exit 0
           fi
 
-      - name: 📦 创建或更新 Gitea Release
-        env:
-          REGISTRY_HOST: ${{ env.REGISTRY }}
-          REPO: ${{ env.IMAGE_REPO }}
-          TOKEN: ${{ secrets.CI_TOKEN }}
-          TAG: ${{ steps.codever.outputs.code }}-WARP.${{ needs.check.outputs.warp }}
-          TITLE: ${{ steps.codever.outputs.code }}-WARP.${{ needs.check.outputs.warp }}
-        run: |
-          set -euo pipefail
-          API="https://${REGISTRY_HOST}/api/v1/repos/${REPO}"
-          
-          if curl -sf -H "Authorization: token ${TOKEN}" "${API}/releases/tags/${TAG}" >/dev/null 2>&1; then
-            echo "✏️ 更新 Gitea Release: ${TAG}"
-            curl -sS -X PATCH "${API}/releases/tags/${TAG}" \
-              -H "Authorization: token ${TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "{\"name\":\"${TITLE}\",\"prerelease\":false}" >/dev/null
-          else
-            echo "🎉 创建 Gitea Release: ${TAG}"
-            curl -sS -X POST "${API}/releases" \
-              -H "Authorization: token ${TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "{\"tag_name\":\"${TAG}\",\"name\":\"${TITLE}\",\"prerelease\":false}" >/dev/null
-          fi
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          BUILD_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_number }}"
+          TITLE="💥 ${REPO_NAME} 镜像构建失败"
+          DESC="仓库: **${{ github.repository }}**\n[查看构建日志](${BUILD_URL})"
+          COLOR=16711680
+
+          curl -H "Content-Type: application/json" -X POST -d "{
+            \"username\": \"Gitea CI\",
+            \"embeds\": [{
+              \"title\": \"${TITLE}\",
+              \"description\": \"${DESC}\",
+              \"color\": ${COLOR}
+            }]
+          }" "${DISCORD_WEBHOOK}"
