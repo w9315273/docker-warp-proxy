@@ -1,12 +1,15 @@
 services:
   WARP:
-    image: ghcr.io/w9315273/docker-warp-proxy:latest
+    image: git.dlxorgus.com/ppangel/docker-warp-proxy:latest
     container_name: WARP
     network_mode: bridge
     ports:
       - "1080:1080/tcp"
       - "1080:1080/udp"
       - "1081:1081/tcp"
+    dns:
+      - 1.1.1.1
+      - 1.0.0.1
     environment:
       SOCKS5_PROXY_PORT: "1080"
       HTTP_PROXY_PORT: "1081"
