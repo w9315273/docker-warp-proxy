@@ -99,7 +99,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
+          username: "PPangel"
           password: ${{ secrets.CI_TOKEN }}
 
       - name: 📝 读取代码版本号
@@ -130,7 +130,7 @@ jobs:
           REGISTRY_HOST: ${{ env.REGISTRY }}
           REPO: ${{ env.IMAGE_REPO }}
           TOKEN: ${{ secrets.CI_TOKEN }}
-          USERNAME: ${{ github.actor }}
+          USERNAME: "PPangel"
           TAG: ${{ steps.codever.outputs.code }}-WARP.${{ needs.check.outputs.warp }}
         run: |
           set -euo pipefail
