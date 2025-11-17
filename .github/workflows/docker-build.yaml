@@ -18,7 +18,7 @@ jobs:
       warp: ${{ steps.vercmp.outputs.warp }}
     steps:
       - name: 📥 检出代码
-      - uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: 🌐 获取远程 WARP 版本
         id: remote
