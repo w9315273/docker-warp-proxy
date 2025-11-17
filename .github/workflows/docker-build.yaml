@@ -1,4 +1,4 @@
-name: 构建并推送 Docker 镜像（自动）
+name: 构建并推送 docker-warp-proxy 镜像
 
 on:
   schedule:
@@ -17,6 +17,7 @@ jobs:
       build: ${{ steps.vercmp.outputs.build }}
       warp: ${{ steps.vercmp.outputs.warp }}
     steps:
+      - name: 📥 检出代码
       - uses: actions/checkout@v4
 
       - name: 🌐 获取远程 WARP 版本
