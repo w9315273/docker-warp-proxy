@@ -1,6 +1,6 @@
 services:
   WARP:
-    image: git.dlxorgus.com/ppangel/docker-warp-proxy:latest
+    image: ghcr.io/w9315273/docker-warp-proxy:latest
     container_name: WARP
     network_mode: bridge
     ports:
