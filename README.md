@@ -29,7 +29,7 @@ docker run -d \
   -p 1080:1080/udp \
   -v ./warp-data:/var/lib/cloudflare-warp \
   -e SOCKS5_PROXY_PORT=1080 \
-  -e HTTP_PROXY_PORT=1081 \
+  -e HTTP_PROXY_PORT=3128 \
   -e WARP_LICENSE_KEY= "" \    # 可选, 你的LICENSE_KEY \
   -e WARP_TOKEN_URL= "" \       # 可选, 获取到的TOKEN_URL \
   --cap-add NET_ADMIN \
@@ -48,10 +48,10 @@ services:
     ports:
       - "1080:1080/tcp"
       - "1080:1080/udp"
-      - "1081:1081/tcp"
+      - "3128:3128/tcp"
     environment:
       SOCKS5_PROXY_PORT: "1080"
-      HTTP_PROXY_PORT: "1081"
+      HTTP_PROXY_PORT: "3128"
       WARP_LICENSE_KEY: ""    # 可选, 你的LICENSE_KEY
       WARP_TOKEN_URL: ""      # 可选, 获取到的TOKEN_URL
     volumes:
@@ -67,7 +67,7 @@ services:
 
 ## 测试
 ```bash
-curl --socks5-hostname 127.0.0.1:1080 https://www.cloudflare.com/cdn-cgi/trace/
-curl --proxy http://127.0.0.1:1081 https://www.cloudflare.com/cdn-cgi/trace/
+curl --socks5-hostname 127.0.0.1:1080 https://www.cloudflare.com/cdn-cgi/trace
+curl --proxy http://127.0.0.1:3128 https://www.cloudflare.com/cdn-cgi/trace
 ```
 返回字段中 `warp=on` 或 `warp=plus` 表示成功
