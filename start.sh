@@ -2,6 +2,14 @@
 set -e
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
+
+cleanup() {
+    log "收到退出信号, 正在停止服务..."
+    kill -TERM $(jobs -p) 2>/dev/null || true
+    wait 2>/dev/null || true
+    exit 0
+}
+trap cleanup SIGTERM SIGINT
 log "构建版本: $(cat /VERSION 2>/dev/null || echo unknown)"
 WARP_VER="$(dpkg-query -W -f='${Version}\n' cloudflare-warp 2>/dev/null | sed 's/-.*$//' || true)"
 [ -z "$WARP_VER" ] && WARP_VER="unknown"
@@ -105,4 +113,4 @@ cat >/tmp/privoxy.conf <<EOF
 listen-address 0.0.0.0:${HTTP_PROXY_PORT}
 EOF
 /usr/sbin/privoxy --no-daemon /tmp/privoxy.conf >/dev/null 2>&1 &
-tail -f /dev/null
+wait -n
