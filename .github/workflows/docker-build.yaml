@@ -18,7 +18,7 @@ jobs:
       warp: ${{ steps.vercmp.outputs.warp }}
     steps:
       - name: 📥 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🌐 获取远程 WARP 版本
         id: remote
@@ -85,7 +85,7 @@ jobs:
       packages: write
     steps:
       - name: 📥 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 登录 GHCR
         uses: docker/login-action@v3
